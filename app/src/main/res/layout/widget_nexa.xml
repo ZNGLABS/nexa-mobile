@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Un widget est dessine par RemoteViews dans le processus du lanceur : Compose y
+     est impossible, seul un sous-ensemble de vues XML est autorise. D'ou ce layout
+     volontairement simple. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/widget_bg"
+    android:padding="10dp">
+
+    <TextView
+        android:id="@+id/widget_symbol"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SOL"
+        android:textColor="@color/nexa_gold"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widget_price"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/widget_waiting"
+        android:textColor="@color/nexa_text"
+        android:textSize="19sp"
+        android:fontFamily="monospace" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/app_name"
+        android:textColor="@color/nexa_muted"
+        android:textSize="9sp" />
+</LinearLayout>

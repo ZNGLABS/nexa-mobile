@@ -1,0 +1,12 @@
+<!-- Avant-plan de l'icone adaptative. La zone sure d'une icone adaptative fait
+     72dp sur 108 : le dessin reste donc bien au centre pour ne pas etre rogne par
+     les masques ronds, carres ou en goutte des differents lanceurs. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#F5B700"
+        android:pathData="M36,32h8.5l19,27.5V32H72v44h-8.5l-19,-27.5V76H36z" />
+</vector>

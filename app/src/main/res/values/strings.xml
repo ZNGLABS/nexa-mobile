@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NEXA</string>
+
+    <string name="channel_monitor">Background monitor</string>
+    <string name="channel_monitor_desc">Silent, permanent notice shown while NEXA watches prices in the background.</string>
+    <string name="channel_alerts">Price alerts</string>
+    <string name="channel_alerts_desc">Fires when a market you are watching crosses your price.</string>
+
+    <string name="monitor_title">NEXA is watching the market</string>
+    <string name="monitor_starting">Starting…</string>
+    <string name="monitor_running">%1$s $%2$s · %3$d alert(s) armed</string>
+    <string name="monitor_running_nodata">%1$d alert(s) armed</string>
+    <string name="monitor_offline">Phoenix unreachable — retrying</string>
+
+    <string name="alert_title">%1$s price alert</string>
+    <string name="alert_body">%1$s %2$s $%3$s · now $%4$s</string>
+    <string name="alert_above">rose above</string>
+    <string name="alert_below">fell below</string>
+
+    <string name="widget_waiting">waiting…</string>
+    <string name="widget_description">NEXA — live price of the market you follow</string>
+</resources>

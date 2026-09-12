@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- updatePeriodMillis vaut 0 VOLONTAIREMENT : Android plafonne de toute facon les
+     mises a jour automatiques d'un widget a 30 minutes, ce qui serait inutile pour
+     un prix. C'est le service de premier plan qui rafraichit le widget a chaque
+     cycle de 60 secondes, via AppWidgetManager. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="70dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_nexa"
+    android:previewLayout="@layout/widget_nexa"
+    android:description="@string/widget_description"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />

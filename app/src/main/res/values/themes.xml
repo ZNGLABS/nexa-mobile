@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Theme XML minimal : Compose Material 3 porte toute l'apparence de l'application
+     (voir ui/Theme.kt). Celui-ci ne sert qu'a donner la bonne couleur a la fenetre
+     et aux barres systeme AVANT que Compose ne prenne la main, pour eviter le flash
+     blanc au lancement. On herite de android:Theme.Material pour ne pas ajouter la
+     dependance AppCompat, dont on n'a aucun autre usage. -->
+<resources>
+    <style name="Theme.NexaMobile" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/nexa_bg</item>
+        <item name="android:statusBarColor">@color/nexa_bg</item>
+        <item name="android:navigationBarColor">@color/nexa_bg</item>
+    </style>
+</resources>

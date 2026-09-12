@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Memes valeurs que les variables CSS de nexa-exchange.fr. -->
+<resources>
+    <color name="nexa_bg">#0C0A08</color>
+    <color name="nexa_card">#1A1713</color>
+    <color name="nexa_gold">#F5B700</color>
+    <color name="nexa_text">#F2EDE4</color>
+    <color name="nexa_muted">#8C8377</color>
+</resources>
