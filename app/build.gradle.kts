@@ -5,7 +5,9 @@ plugins {
 
 android {
     namespace = "fr.nexaexchange.mobile"
-    compileSdk = 34
+    // 35 est impose par les AndroidX que tire Mobile Wallet Adapter — voir la note
+    // detaillee dans le build.gradle.kts racine.
+    compileSdk = 35
 
     defaultConfig {
         // Identifiant VOLONTAIREMENT different de fr.nexaexchange.dex, l'application

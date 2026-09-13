@@ -24,16 +24,18 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 8.4
+      # Gradle 8.9 : AGP 8.6.1 exige 8.7 au minimum. Voir la note dans build.gradle.kts
+      # racine pour la raison de cette remontee (Mobile Wallet Adapter impose le SDK 35).
+      - name: Setup Gradle 8.9
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.4'
+          gradle-version: '8.9'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install SDK components
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       # AUCUN SECRET N'EST NECESSAIRE. L'APK est signe avec la cle de debogage que
       # Gradle genere lui-meme : il s'installe normalement pour une demonstration,
