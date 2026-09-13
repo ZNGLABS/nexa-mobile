@@ -74,20 +74,50 @@ class WalletManager(context: Context) {
         }
 
     /**
-     * Deconnexion. On efface l'etat local MEME si le portefeuille echoue a invalider le
-     * jeton : du point de vue de l'utilisateur, « deconnecter » doit toujours deconnecter.
-     * Un jeton orphelin cote portefeuille est sans consequence, un bouton qui ne fait
-     * rien ne l'est pas.
+     * Deconnexion — INSTANTANEE et purement locale.
+     *
+     * 🔴 REECRIT LE 13 SEPTEMBRE APRES TEST SUR SEEKER.
+     * La premiere version appelait adapter.disconnect(), qui envoie une intention au
+     * portefeuille pour qu'il invalide le jeton. Resultat filme sur l'appareil : toucher
+     * « Disconnect » ouvrait le selecteur d'application Android — Amine a quatre
+     * portefeuilles installes, Backpack, Jupiter, Phantom, Solflare — puis exigeait une
+     * approbation. Personne n'a jamais approuve une deconnexion, et sa reaction a ete
+     * exactement la bonne : « c'est bizarre ».
+     *
+     * Ce que l'utilisateur veut dire par « deconnecter », c'est : cette application doit
+     * oublier mon portefeuille. Cela s'obtient entierement en local, sans reseau et sans
+     * sortir de l'application. On efface donc, point.
+     *
+     * Ce qu'on perd, dit franchement : le portefeuille garde une trace d'autorisation
+     * pour NEXA. Elle est inexploitable — nous n'avons plus le jeton — mais elle reste
+     * listee dans ses reglages. Qui veut l'effacer vraiment a [revokeInWallet], propose
+     * separement et etiquete pour ce qu'il est.
      */
-    suspend fun disconnect(sender: ActivityResultSender) {
+    fun disconnect() {
+        adapter.authToken = null
+        store.walletAddress = null
+        store.walletAuthToken = null
+    }
+
+    /**
+     * Revocation cote portefeuille, puis deconnexion locale.
+     *
+     * Ouvre l'application de portefeuille et demande une approbation : c'est inevitable,
+     * seul le portefeuille peut invalider un jeton qu'il a emis. L'interface previent
+     * avant de le declencher, au lieu de le faire dans le dos de l'utilisateur.
+     *
+     * L'ordre compte : on revoque TANT QU'ON A ENCORE le jeton, puis on efface. L'inverse
+     * ne reviendrait a rien faire.
+     */
+    suspend fun revokeInWallet(sender: ActivityResultSender) {
         try {
             adapter.disconnect(sender)
         } catch (e: Exception) {
-            // ignore volontairement
+            // L'utilisateur peut avoir ferme le selecteur ou refuse : on deconnecte
+            // localement quand meme. Un bouton qui ne fait rien serait pire qu'un jeton
+            // orphelin chez le portefeuille.
         } finally {
-            adapter.authToken = null
-            store.walletAddress = null
-            store.walletAuthToken = null
+            disconnect()
         }
     }
 }

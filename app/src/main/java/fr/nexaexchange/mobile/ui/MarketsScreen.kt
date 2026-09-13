@@ -184,10 +184,17 @@ fun MarketsScreen(
                         walletBusy = false
                     }
                 },
+                // Instantane : aucun aller-retour vers le portefeuille, donc aucun
+                // selecteur d'application et aucune approbation a donner.
                 onDisconnect = {
+                    wallet.disconnect()
+                    address = null
+                    walletMessage = null
+                },
+                onRevoke = {
                     walletBusy = true; walletMessage = null
                     scope.launch {
-                        wallet.disconnect(sender)
+                        wallet.revokeInWallet(sender)
                         address = null
                         walletBusy = false
                     }
@@ -286,6 +293,7 @@ private fun WalletRow(
     message: String?,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
+    onRevoke: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -327,6 +335,18 @@ private fun WalletRow(
             Text(
                 "NEXA never sees your private key. Your wallet app approves every action.",
                 color = NexaMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp),
+            )
+        } else if (!busy) {
+            // Action secondaire, et annoncee pour ce qu'elle est : elle ouvre le
+            // portefeuille et demande une approbation. « Disconnect » juste au-dessus
+            // est instantane et n'ouvre rien.
+            Text(
+                "Also revoke access in your wallet app ›",
+                color = NexaMuted,
+                fontSize = 10.sp,
+                modifier = Modifier
+                    .padding(top = 3.dp)
+                    .clickable { onRevoke() },
             )
         }
     }
