@@ -19,6 +19,21 @@
     <!-- Relance du moniteur apres un redemarrage du telephone. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Visibilite des paquets, obligatoire depuis Android 11.
+         Sans cette declaration, l'application ne PEUT PAS voir qu'un portefeuille
+         compatible est installe : la resolution d'intention renvoie vide et Mobile
+         Wallet Adapter conclut « aucun portefeuille trouve » alors que Phantom est
+         juste a cote. La bibliotheque MWA declare peut-etre deja ces entrees dans son
+         propre manifeste, mais le repeter ici ne coute rien et supprime une panne
+         silencieuse qui ne se verrait que sur un vrai telephone. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="solana-wallet" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

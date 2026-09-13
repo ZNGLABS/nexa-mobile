@@ -117,6 +117,32 @@ class AlertStore(context: Context) {
         return if (at == 0L) Long.MAX_VALUE else System.currentTimeMillis() - at
     }
 
+    // ---- Portefeuille ------------------------------------------------------
+
+    /**
+     * Adresse publique du portefeuille connecte. C'est une donnee PUBLIQUE : elle est
+     * lisible par n'importe qui sur la chaine. On la garde pour afficher l'etat connecte
+     * des l'ouverture, sans attendre le reseau.
+     */
+    var walletAddress: String?
+        get() = prefs.getString("wallet_address", null)
+        set(v) { prefs.edit().putString("wallet_address", v).apply() }
+
+    /**
+     * Jeton d'autorisation MWA.
+     *
+     * Ce que c'est, et ce que ce n'est pas : un jeton de session emis par le portefeuille,
+     * qui permet a l'application de redemander une signature sans repasser par l'ecran
+     * d'approbation. Ce N'EST PAS une cle privee et il ne permet PAS de deplacer des
+     * fonds — chaque transaction reste approuvee par l'utilisateur dans son portefeuille.
+     * Il est stocke dans les preferences privees de l'application, illisibles par les
+     * autres applications sur un Android non rooté. « Disconnect » l'efface et demande au
+     * portefeuille de l'invalider.
+     */
+    var walletAuthToken: String?
+        get() = prefs.getString("wallet_auth_token", null)
+        set(v) { prefs.edit().putString("wallet_auth_token", v).apply() }
+
     private companion object {
         const val KEY = "alerts_v1"
     }

@@ -38,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,23 +50,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import fr.nexaexchange.mobile.R
 import fr.nexaexchange.mobile.data.AlertDirection
 import fr.nexaexchange.mobile.data.AlertStore
+import fr.nexaexchange.mobile.data.Base58
 import fr.nexaexchange.mobile.data.Market
 import fr.nexaexchange.mobile.data.PhoenixApi
 import fr.nexaexchange.mobile.data.PriceAlert
 import fr.nexaexchange.mobile.service.PriceMonitorService
+import fr.nexaexchange.mobile.wallet.WalletManager
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketsScreen(
     notificationsAllowed: Boolean,
     onRequestNotifications: () -> Unit,
+    wallet: WalletManager,
+    sender: ActivityResultSender,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val store = remember { AlertStore(context) }
+
+    // Adresse lue depuis les preferences : l'etat « connecte » s'affiche des le premier
+    // rendu, sans attendre le portefeuille ni le reseau.
+    var address by remember { mutableStateOf(wallet.savedAddress) }
+    var walletBusy by remember { mutableStateOf(false) }
+    var walletMessage by remember { mutableStateOf<String?>(null) }
 
     var markets by remember { mutableStateOf<List<Market>>(emptyList()) }
     var alerts by remember { mutableStateOf<List<PriceAlert>>(store.all()) }
@@ -149,6 +163,37 @@ fun MarketsScreen(
                 )
             }
 
+            WalletRow(
+                address = address,
+                busy = walletBusy,
+                message = walletMessage,
+                onConnect = {
+                    walletBusy = true; walletMessage = null
+                    scope.launch {
+                        when (val r = wallet.connect(sender)) {
+                            is WalletManager.Outcome.Connected -> {
+                                address = r.address
+                            }
+                            is WalletManager.Outcome.NoWallet -> {
+                                walletMessage = "No Solana wallet app found on this device."
+                            }
+                            is WalletManager.Outcome.Failed -> {
+                                walletMessage = r.message
+                            }
+                        }
+                        walletBusy = false
+                    }
+                },
+                onDisconnect = {
+                    walletBusy = true; walletMessage = null
+                    scope.launch {
+                        wallet.disconnect(sender)
+                        address = null
+                        walletBusy = false
+                    }
+                },
+            )
+
             MonitorRow(
                 on = monitorOn,
                 alertCount = alerts.count { it.enabled },
@@ -224,6 +269,66 @@ private fun WarningBanner(text: String, actionLabel: String, onAction: () -> Uni
     ) {
         Text(text, color = NexaText, fontSize = 12.sp, modifier = Modifier.weight(1f))
         TextButton(onClick = onAction) { Text(actionLabel, color = NexaGold) }
+    }
+}
+
+/**
+ * Ligne du portefeuille.
+ *
+ * Quand rien n'est connecte, elle explique ce que la connexion apporte AVANT de la
+ * demander. Un bouton « Connect wallet » nu, dans une application de trading, se fait
+ * refuser par prudence — et l'utilisateur a raison de se mefier.
+ */
+@Composable
+private fun WalletRow(
+    address: String?,
+    busy: Boolean,
+    message: String?,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (address != null) "Wallet connected" else "Wallet",
+                    color = NexaText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                )
+                Text(
+                    address?.let { Base58.shorten(it, 6, 6) }
+                        ?: "Connect to see your Phoenix positions",
+                    color = if (address != null) NexaGold else NexaMuted,
+                    fontSize = 11.sp,
+                    fontFamily = if (address != null) FontFamily.Monospace else FontFamily.Default,
+                )
+            }
+            if (busy) {
+                CircularProgressIndicator(
+                    color = NexaGold,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                TextButton(onClick = if (address != null) onDisconnect else onConnect) {
+                    Text(
+                        if (address != null) "Disconnect" else "Connect",
+                        color = if (address != null) NexaMuted else NexaGold,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
+        }
+        if (message != null) {
+            Text(message, color = NexaRed, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+        }
+        if (address == null) {
+            // Dit explicitement ce que l'application NE fait PAS. C'est la phrase qui
+            // decide un utilisateur prudent, pas le bouton.
+            Text(
+                "NEXA never sees your private key. Your wallet app approves every action.",
+                color = NexaMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp),
+            )
+        }
     }
 }
 
