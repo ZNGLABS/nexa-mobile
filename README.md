@@ -24,13 +24,20 @@ cannot, written during the hackathon window. The repository history is the evide
 
 ## What is new here, concretely
 
-| Capability | Why a web app cannot do it |
-|---|---|
-| **Foreground service** polling Phoenix every 60 s | A browser tab stops when it is closed |
-| **Native price alerts** on any of 82 perp markets | No background execution, no OS notification channel |
-| **Restart after reboot** (`BOOT_COMPLETED`) | An alert set at night would silently die |
-| **Home screen widget** with the live mark price | No web equivalent on Android |
-| **Direct Solana + Phoenix access from Kotlin** | — |
+| Capability | Why a web app cannot do it | Verified |
+|---|---|---|
+| **Foreground service** polling Phoenix every 60 s | A browser tab stops when it is closed | ✅ on a Seeker |
+| **Native price alerts** on any of 82 perp markets | No background execution, no OS notification channel | ✅ on a Seeker |
+| **Restart after reboot** (`BOOT_COMPLETED`) | An alert set at night would silently die | ✅ on a Seeker |
+| **Home screen widget** with the live mark price | No web equivalent on Android | ✅ on a Seeker |
+| **Wallet connection over Mobile Wallet Adapter** | — | ⏳ built, not yet device-tested |
+
+"Verified on a Seeker" means exactly that: recorded on a physical Solana Seeker and
+watched frame by frame, not assumed from the fact that it compiles. That review found
+five defects that compiling had not — a locale bug printing `$76 761,00` in an English
+UI, an alerts list that pushed the market list off screen, rows re-sorting under the
+reader's finger every ten seconds, and a widget that would have stayed blank forever if
+the monitor was off. All are fixed in the history.
 
 ## Architecture
 
@@ -76,10 +83,10 @@ Its application id is `fr.nexaexchange.mobile`, deliberately different from the 
 
 | | |
 |---|---|
-| ✅ Markets list, live prices, 24 h change, search | working |
-| ✅ Price alerts, background service, reboot recovery | working |
-| ✅ Home screen widget | working |
-| ⏳ Mobile Wallet Adapter sign-in | not started |
+| ✅ Markets list, live prices, 24 h change, search | working, device-tested |
+| ✅ Price alerts, background service, reboot recovery | working, device-tested |
+| ✅ Home screen widget | working, device-tested |
+| 🟡 Mobile Wallet Adapter connect / disconnect | builds, awaiting device test |
 | ⏳ Open positions and PnL read from the trader account | not started |
 | ⏳ Liquidation-distance alerts | not started |
 
