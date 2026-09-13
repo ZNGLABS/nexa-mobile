@@ -1,5 +1,6 @@
 package fr.nexaexchange.mobile.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,11 +43,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.nexaexchange.mobile.R
 import fr.nexaexchange.mobile.data.AlertDirection
 import fr.nexaexchange.mobile.data.AlertStore
 import fr.nexaexchange.mobile.data.Market
@@ -113,12 +116,23 @@ fun MarketsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("NEXA", fontWeight = FontWeight.Black, color = NexaGold, fontSize = 20.sp)
-                        Text(
-                            "Phoenix perps · ${markets.size} markets",
-                            color = NexaMuted, fontSize = 11.sp,
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // L'embleme NEXA, le meme fichier que l'icone de lancement :
+                        // une seule image dans l'APK, et l'en-tete ne peut pas diverger
+                        // de l'icone si la marque evolue.
+                        Image(
+                            painter = painterResource(id = R.mipmap.nexa_emblem),
+                            contentDescription = "NEXA",
+                            modifier = Modifier.size(32.dp),
                         )
+                        Spacer(Modifier.width(9.dp))
+                        Column {
+                            Text("NEXA", fontWeight = FontWeight.Black, color = NexaGold, fontSize = 20.sp)
+                            Text(
+                                "Phoenix perps · ${markets.size} markets",
+                                color = NexaMuted, fontSize = 11.sp,
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = NexaBg),
