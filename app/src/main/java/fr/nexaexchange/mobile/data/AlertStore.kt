@@ -85,6 +85,38 @@ class AlertStore(context: Context) {
         get() = prefs.getBoolean("monitor_enabled", false)
         set(v) { prefs.edit().putBoolean("monitor_enabled", v).apply() }
 
+    /**
+     * Dernier prix connu du marche suivi par le widget, et son horodatage.
+     *
+     * POURQUOI CE CACHE EXISTE : sans lui, un widget qu'on vient de poser sur
+     * l'ecran d'accueil affiche « waiting… » jusqu'au prochain cycle du service,
+     * soit jusqu'a une minute. Filme sur le Seeker le 13 septembre : le widget est
+     * reste sur « waiting… » pendant toute la video. Un widget qui n'affiche rien
+     * pendant une minute passe pour cassé, meme quand il fonctionne.
+     * On ecrit donc le prix a chaque cycle, et le widget le redessine
+     * instantanement au moment ou Android le cree.
+     */
+    fun rememberPrice(symbol: String, price: Double) {
+        prefs.edit()
+            .putString("last_price_sym", symbol)
+            .putFloat("last_price_val", price.toFloat())
+            .putLong("last_price_at", System.currentTimeMillis())
+            .apply()
+    }
+
+    /** Prix memorise pour [symbol], ou null s'il concerne un autre marche. */
+    fun rememberedPrice(symbol: String): Double? {
+        if (prefs.getString("last_price_sym", null) != symbol) return null
+        if (!prefs.contains("last_price_val")) return null
+        return prefs.getFloat("last_price_val", 0f).toDouble()
+    }
+
+    /** Age du prix memorise, en millisecondes. Long.MAX_VALUE s'il n'y en a pas. */
+    fun rememberedPriceAge(): Long {
+        val at = prefs.getLong("last_price_at", 0L)
+        return if (at == 0L) Long.MAX_VALUE else System.currentTimeMillis() - at
+    }
+
     private companion object {
         const val KEY = "alerts_v1"
     }
