@@ -1,6 +1,10 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    // Depuis Kotlin 2.0, le compilateur Compose est livre avec le plugin Kotlin et se
+    // declare ici. Le bloc composeOptions / kotlinCompilerExtensionVersion de l'epoque
+    // Kotlin 1.9 n'existe plus.
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -46,7 +50,6 @@ android {
     kotlinOptions { jvmTarget = "17" }
 
     buildFeatures { compose = true }
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.10" }
 
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
@@ -59,7 +62,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-service:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
 
-    val composeBom = platform("androidx.compose:compose-bom:2024.02.01")
+    // BOM contemporain de Kotlin 2.1.21 et d'AGP 8.10.1 : les trois ont ete publies
+    // en mai 2025, donc testes ensemble en amont.
+    val composeBom = platform("androidx.compose:compose-bom:2025.05.01")
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
