@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
+import fr.nexaexchange.mobile.BuildConfig
 import fr.nexaexchange.mobile.R
 import fr.nexaexchange.mobile.data.AlertDirection
 import fr.nexaexchange.mobile.data.AlertStore
@@ -145,6 +146,13 @@ fun MarketsScreen(
                             Text(
                                 "Phoenix perps · ${markets.size} markets",
                                 color = NexaMuted, fontSize = 11.sp,
+                            )
+                            // Empreinte du commit d'ou vient cet APK. Une ligne de neuf
+                            // caracteres qui evite de tester la mauvaise version sans
+                            // jamais pouvoir s'en apercevoir.
+                            Text(
+                                "build ${BuildConfig.BUILD_SHA.take(7)}",
+                                color = NexaMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace,
                             )
                         }
                     }

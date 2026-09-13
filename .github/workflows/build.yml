@@ -41,8 +41,11 @@ jobs:
       # AUCUN SECRET N'EST NECESSAIRE. L'APK est signe avec la cle de debogage que
       # Gradle genere lui-meme : il s'installe normalement pour une demonstration,
       # et ce depot public ne contient donc aucun mot de passe ni keystore.
+      # -PbuildSha grave l'empreinte du commit DANS l'application, qui l'affiche sous
+      # son titre. Sans cela, rien ne distingue a l'ecran deux APK successifs de meme
+      # poids, et on peut tester pendant une demi-heure une version deja corrigee.
       - name: Build APK
-        run: gradle :app:assembleRelease --no-daemon --stacktrace
+        run: gradle :app:assembleRelease --no-daemon --stacktrace -PbuildSha=${{ github.sha }}
 
       - name: Rename artifact
         run: |

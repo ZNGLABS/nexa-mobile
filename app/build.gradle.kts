@@ -24,6 +24,20 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         vectorDrawables { useSupportLibrary = true }
+
+        // Empreinte du commit, injectee par la CI (-PbuildSha=...).
+        //
+        // POURQUOI : le 13 septembre 2026, le testeur a desinstalle puis reinstalle
+        // l'application depuis un APK deja present dans sa conversation Telegram, envoye
+        // quatorze minutes avant que le correctif ne soit publie. Il a donc reteste la
+        // version AVANT correction et conclu que rien n'avait change. Deux APK successifs
+        // pesent le meme poids a l'arrondi : rien, a l'ecran, ne permettait de les
+        // distinguer. Desormais l'application affiche le commit dont elle est issue.
+        buildConfigField(
+            "String",
+            "BUILD_SHA",
+            "\"" + (project.findProperty("buildSha") ?: "local") + "\"",
+        )
     }
 
     buildTypes {
@@ -49,7 +63,10 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true   // requis pour buildConfigField depuis AGP 8
+    }
 
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
