@@ -15,6 +15,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * Service de premier plan qui surveille les prix meme quand l'application est fermee.
@@ -137,13 +138,26 @@ class PriceMonitorService : Service() {
         private const val INTERVAL_MS = 60_000L
         private const val COOLDOWN_MS = 15 * 60_000L
 
-        /** Affiche un prix avec une precision adaptee a son ordre de grandeur. */
+        /**
+         * Affiche un prix avec une precision adaptee a son ordre de grandeur.
+         *
+         * 🔴 Locale.US N'EST PAS FACULTATIF. Sans lui, String.format suit la langue du
+         * telephone : sur un appareil francais, un prix s'affichait « $76 761,00 » et
+         * une variation « -2,06% », au milieu d'une interface entierement en anglais.
+         * Constate le 13 septembre 2026 sur la video de test tournee sur le Seeker.
+         * Le prix d'un actif en dollars s'ecrit avec un point decimal, quelle que soit
+         * la langue de l'utilisateur.
+         */
         fun fmt(v: Double): String = when {
-            v >= 1000 -> String.format("%,.2f", v)
-            v >= 1 -> String.format("%.2f", v)
-            v >= 0.01 -> String.format("%.4f", v)
-            else -> String.format("%.6f", v)
+            v >= 1000 -> String.format(Locale.US, "%,.2f", v)
+            v >= 1 -> String.format(Locale.US, "%.2f", v)
+            v >= 0.01 -> String.format(Locale.US, "%.4f", v)
+            else -> String.format(Locale.US, "%.6f", v)
         }
+
+        /** Variation en pourcentage, signe compris. Meme regle de locale. */
+        fun fmtPct(v: Double): String =
+            (if (v >= 0) "+" else "") + String.format(Locale.US, "%.2f", v) + "%"
 
         fun start(context: Context) {
             val i = Intent(context, PriceMonitorService::class.java)

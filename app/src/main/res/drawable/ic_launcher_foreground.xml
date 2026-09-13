@@ -1,12 +1,16 @@
-<!-- Avant-plan de l'icone adaptative. La zone sure d'une icone adaptative fait
-     72dp sur 108 : le dessin reste donc bien au centre pour ne pas etre rogne par
-     les masques ronds, carres ou en goutte des differents lanceurs. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#F5B700"
-        android:pathData="M36,32h8.5l19,27.5V32H72v44h-8.5l-19,-27.5V76H36z" />
-</vector>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Avant-plan de l'icone adaptative : le VRAI embleme NEXA, celui du site.
+     La premiere version etait un « N » vectoriel que j'avais dessine faute d'avoir
+     verse le moindre fichier binaire au depot. Amine l'a releve des la premiere
+     installation, et il avait raison : une application de marque doit porter sa marque.
+
+     Pourquoi l'embleme seul et pas le logo complet du site : a 48 dp sur un ecran
+     d'accueil, la ligne « NEXA CRYPTO EXCHANGE » du logo carre serait illisible, et
+     le masque d'icone adaptative la rognerait de toute facon.
+
+     L'inset de 16 % maintient le cercle dans la zone sure d'une icone adaptative
+     (72 dp utiles sur 108), donc aucun lanceur ne peut lui couper les bords, qu'il
+     applique un masque rond, carre ou en goutte. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@mipmap/nexa_emblem"
+    android:inset="16%" />

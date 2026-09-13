@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -71,12 +72,24 @@ fun MarketsScreen(
     var monitorOn by remember { mutableStateOf(store.monitorEnabled) }
     var dialogFor by remember { mutableStateOf<Market?>(null) }
 
+    // Ordre d'affichage FIGE au premier chargement.
+    // 🔴 Sans cela, la liste est retriee par volume 24 h a chaque rafraichissement et
+    // les lignes changent de place sous le doigt de l'utilisateur : sur la video de
+    // test du 13 septembre, ZEC et ETH permutaient toutes les dix secondes. Le volume
+    // bouge en permanence, l'ordre ne doit pas.
+    var order by remember { mutableStateOf<List<String>>(emptyList()) }
+
     // Rafraichissement pendant que l'ecran est visible. Le service de fond, lui,
     // continue independamment : les deux ne se marchent pas dessus.
     LaunchedEffect(Unit) {
         while (true) {
             try {
-                markets = PhoenixApi.fetchMarketsWithPrices()
+                val fresh = PhoenixApi.fetchMarketsWithPrices()
+                if (order.isEmpty()) order = fresh.map { it.symbol }
+                val rang = order.withIndex().associate { (i, s) -> s to i }
+                // Un marche apparu apres le premier chargement va en fin de liste
+                // plutot que de decaler tout le reste.
+                markets = fresh.sortedBy { rang[it.symbol] ?: Int.MAX_VALUE }
                 error = null
             } catch (e: Exception) {
                 // On n'efface pas la liste deja affichee : mieux vaut des prix d'il y
@@ -218,28 +231,40 @@ private fun MonitorRow(on: Boolean, alertCount: Int, onToggle: (Boolean) -> Unit
     }
 }
 
+/**
+ * Bandeau des alertes armees.
+ *
+ * 🔴 REECRIT APRES LE TEST DU 13 SEPTEMBRE. La premiere version empilait une ligne
+ * pleine largeur par alerte, avec un bouton « Remove » a droite. Avec cinq alertes,
+ * elles occupaient la moitie de l'ecran et repoussaient la liste des marches tout en
+ * bas : filme sur le Seeker, c'etait le defaut le plus visible de l'application.
+ * Desormais une seule rangee qui defile horizontalement, quel que soit le nombre.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AlertsStrip(alerts: List<PriceAlert>, onDelete: (Long) -> Unit) {
-    Column(Modifier.padding(horizontal = 14.dp)) {
-        alerts.forEach { a ->
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        items(alerts, key = { it.id }) { a ->
             Row(
-                Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                Modifier
+                    .background(Color(0x1AF5B700), RoundedCornerShape(14.dp))
+                    .clickable { onDelete(a.id) }
+                    .padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                FilterChip(
-                    selected = true,
-                    onClick = { },
-                    label = {
-                        Text(
-                            "${a.symbol} ${if (a.direction == AlertDirection.ABOVE) "↑" else "↓"} " +
-                                "$" + PriceMonitorService.fmt(a.threshold),
-                            fontSize = 12.sp,
-                        )
-                    },
+                Text(
+                    "${a.symbol} ${if (a.direction == AlertDirection.ABOVE) "↑" else "↓"} " +
+                        "$" + PriceMonitorService.fmt(a.threshold),
+                    color = NexaGold, fontSize = 12.sp, fontWeight = FontWeight.Medium,
                 )
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = { onDelete(a.id) }) { Text("Remove", color = NexaMuted, fontSize = 12.sp) }
+                Spacer(Modifier.width(7.dp))
+                // Croix plutot que le mot « Remove » : meme fonction, une fraction de
+                // la largeur, et l'intention reste lisible.
+                Text("×", color = NexaMuted, fontSize = 15.sp)
             }
         }
     }
@@ -286,7 +311,7 @@ private fun MarketRow(m: Market, onClick: () -> Unit) {
                     fontSize = 15.sp, fontFamily = FontFamily.Monospace,
                 )
                 Text(
-                    chg?.let { (if (it >= 0) "+" else "") + String.format("%.2f", it) + "%" } ?: "—",
+                    chg?.let { PriceMonitorService.fmtPct(it) } ?: "—",
                     color = when {
                         chg == null -> NexaMuted
                         chg >= 0 -> NexaGreen
