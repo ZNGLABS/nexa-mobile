@@ -2,8 +2,10 @@ package fr.nexaexchange.mobile.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
@@ -127,6 +129,62 @@ object PhoenixApi {
             o.optDoubleOrNull("mark_price")?.let { out[sym] = it }
         }
         return out
+    }
+
+    /**
+     * Adresse du compte trader d'un portefeuille.
+     *
+     * On la DEMANDE a Phoenix au lieu de la deriver nous-memes. Deriver un PDA exige de
+     * recopier la regle de derivation du programme ; si Phoenix la change, notre copie
+     * pointerait silencieusement sur un compte inexistant et l'application afficherait
+     * « aucune position » a quelqu'un qui en a. Une requete de plus vaut mieux qu'un
+     * mensonge muet.
+     */
+    suspend fun fetchTraderPda(wallet: String): String? = withContext(Dispatchers.IO) {
+        val payload = JSONObject()
+            .put("traderAuthority", wallet)
+            .put("txFeePayer", wallet)
+            .toString()
+        val req = Request.Builder()
+            .url("$BASE/v1/exchange/build-register-ixs")
+            .post(payload.toRequestBody("application/json".toMediaType()))
+            .header("User-Agent", "NEXA-Mobile-Android")
+            .build()
+        client.newCall(req).execute().use { res ->
+            val txt = res.body?.string().orEmpty()
+            if (!res.isSuccessful) return@withContext null
+            JSONObject(txt).optString("traderPda").ifEmpty { null }
+        }
+    }
+
+    /**
+     * Positions ouvertes du portefeuille, enrichies des prix marque.
+     *
+     * Liste vide = le compte existe mais n'a aucune position. `null` = on n'a pas pu
+     * savoir (pas de compte trader, ou lecture impossible). La distinction compte :
+     * afficher « aucune position » a quelqu'un qui en a serait pire que d'afficher une
+     * erreur.
+     */
+    suspend fun fetchPositions(wallet: String, markets: List<Market>): List<Position>? {
+        val pda = fetchTraderPda(wallet) ?: return null
+        val data = SolanaRpc.getAccountDataBase64(pda) ?: return null
+        val decoded = TraderAccount.decodeBase64(data)
+        if (decoded.positions.isEmpty()) return emptyList()
+
+        val prices = fetchStats()
+        val parAsset = markets.associateBy { it.assetId }
+        return decoded.positions.mapNotNull { p ->
+            val mk = parAsset[p.assetId] ?: return@mapNotNull null
+            val mark = prices[mk.symbol]?.optDoubleOrNull("mark_price") ?: return@mapNotNull null
+            Position.from(p, mk, mark)
+        }
+    }
+
+    /** Collateral USDC depose sur le compte Phoenix, ou null si pas de compte. */
+    suspend fun fetchCollateral(wallet: String): Double? {
+        val pda = fetchTraderPda(wallet) ?: return null
+        val data = SolanaRpc.getAccountDataBase64(pda) ?: return null
+        return TraderAccount.decodeBase64(data).collateralUsdc
     }
 
     /**

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,6 +59,7 @@ import fr.nexaexchange.mobile.data.AlertStore
 import fr.nexaexchange.mobile.data.Base58
 import fr.nexaexchange.mobile.data.Market
 import fr.nexaexchange.mobile.data.PhoenixApi
+import fr.nexaexchange.mobile.data.Position
 import fr.nexaexchange.mobile.data.PriceAlert
 import fr.nexaexchange.mobile.service.PriceMonitorService
 import fr.nexaexchange.mobile.wallet.WalletManager
@@ -81,6 +83,12 @@ fun MarketsScreen(
     var address by remember { mutableStateOf(wallet.savedAddress) }
     var walletBusy by remember { mutableStateOf(false) }
     var walletMessage by remember { mutableStateOf<String?>(null) }
+
+    // null = on ne sait pas encore (ou on n'a pas pu lire) · liste vide = compte lu,
+    // aucune position. La distinction est volontaire : annoncer « aucune position » a
+    // quelqu'un qui en a serait pire qu'annoncer une erreur.
+    var positions by remember { mutableStateOf<List<Position>?>(null) }
+    var collateral by remember { mutableStateOf<Double?>(null) }
 
     var markets by remember { mutableStateOf<List<Market>>(emptyList()) }
     var alerts by remember { mutableStateOf<List<PriceAlert>>(store.all()) }
@@ -116,6 +124,24 @@ fun MarketsScreen(
             }
             loading = false
             delay(10_000)
+        }
+    }
+
+    // Positions : relues toutes les 15 s tant qu'un portefeuille est connecte.
+    // La cle de l'effet est l'adresse — se deconnecter arrete la boucle, se reconnecter
+    // en relance une propre, sans laisser tourner l'ancienne.
+    LaunchedEffect(address, markets.isEmpty()) {
+        if (address == null) { positions = null; collateral = null; return@LaunchedEffect }
+        if (markets.isEmpty()) return@LaunchedEffect
+        while (true) {
+            try {
+                positions = PhoenixApi.fetchPositions(address!!, markets)
+                collateral = PhoenixApi.fetchCollateral(address!!)
+            } catch (e: Exception) {
+                // On garde ce qu'on affichait. Un PnL d'il y a quinze secondes vaut
+                // mieux qu'un ecran vide, et bien mieux qu'un zero invente.
+            }
+            delay(15_000)
         }
     }
 
@@ -208,6 +234,10 @@ fun MarketsScreen(
                     }
                 },
             )
+
+            if (address != null) {
+                PositionsSection(positions = positions, collateral = collateral)
+            }
 
             MonitorRow(
                 on = monitorOn,
@@ -357,6 +387,100 @@ private fun WalletRow(
                     .clickable { onRevoke() },
             )
         }
+    }
+}
+
+/**
+ * Positions Phoenix ouvertes, lues directement sur la chaine par le telephone.
+ *
+ * Les trois etats sont distincts a l'ecran, et c'est voulu :
+ *   null        → on n'a pas encore pu lire
+ *   liste vide  → compte lu, aucune position
+ *   liste       → les positions
+ * Confondre les deux premiers reviendrait a affirmer « tu n'as rien » a quelqu'un dont
+ * on n'a simplement pas su lire le compte.
+ */
+@Composable
+private fun PositionsSection(positions: List<Position>?, collateral: Double?) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Your positions" + (positions?.let { " · ${it.size}" } ?: ""),
+                color = NexaText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                modifier = Modifier.weight(1f),
+            )
+            collateral?.let {
+                Text(
+                    "collateral $" + PriceMonitorService.fmt(it),
+                    color = NexaMuted, fontSize = 11.sp, fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+
+        when {
+            positions == null -> Text(
+                "Reading your Phoenix account…",
+                color = NexaMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp),
+            )
+            positions.isEmpty() -> Text(
+                "No open position.",
+                color = NexaMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp),
+            )
+            else -> {
+                val totalPnl = positions.sumOf { it.pnlUsd }
+                Text(
+                    "Unrealised " + (if (totalPnl >= 0) "+$" else "-$") +
+                        PriceMonitorService.fmt(Math.abs(totalPnl)),
+                    color = if (totalPnl >= 0) NexaGreen else NexaRed,
+                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 4.dp),
+                )
+                positions.forEach { p -> PositionCard(p) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PositionCard(p: Position) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        colors = CardDefaults.cardColors(containerColor = NexaCard),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Column(Modifier.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(p.symbol, color = NexaText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (p.isLong) "LONG" else "SHORT",
+                    color = if (p.isLong) NexaGreen else NexaRed,
+                    fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    (if (p.pnlUsd >= 0) "+$" else "-$") + PriceMonitorService.fmt(Math.abs(p.pnlUsd)),
+                    color = if (p.pnlUsd >= 0) NexaGreen else NexaRed,
+                    fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+            Spacer(Modifier.height(3.dp))
+            Row {
+                PosField("Size", PriceMonitorService.fmt(p.size) + " " + p.symbol)
+                PosField("Entry", "$" + PriceMonitorService.fmt(p.entryPrice))
+                PosField("Mark", "$" + PriceMonitorService.fmt(p.markPrice))
+                PosField("Value", "$" + PriceMonitorService.fmt(p.notionalUsd))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.PosField(label: String, value: String) {
+    Column(Modifier.weight(1f)) {
+        Text(label, color = NexaMuted, fontSize = 9.sp)
+        Text(value, color = NexaText, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
     }
 }
 
