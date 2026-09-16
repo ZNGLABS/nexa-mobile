@@ -86,9 +86,42 @@ Its application id is `fr.nexaexchange.mobile`, deliberately different from the 
 | ✅ Markets list, live prices, 24 h change, search | working, device-tested |
 | ✅ Price alerts, background service, reboot recovery | working, device-tested |
 | ✅ Home screen widget | working, device-tested |
-| 🟡 Mobile Wallet Adapter connect / disconnect | builds, awaiting device test |
-| ⏳ Open positions and PnL read from the trader account | not started |
-| ⏳ Liquidation-distance alerts | not started |
+| ✅ Mobile Wallet Adapter connect / disconnect | working, device-tested |
+| ✅ Open positions and PnL, decoded from the trader account | working, device-tested |
+| ✅ Liquidation price and distance, from the on-chain view | working, device-tested |
+| ✅ Liquidation alerts in the background at 15 / 8 / 3 % | shipped, not yet seen firing |
+
+## The liquidation price is the program's own number
+
+The app does not estimate where you get liquidated. Phoenix ships read-only *view*
+instructions; the app builds one, **simulates** it — nothing is ever sent — and reads the
+program's own computation out of the transaction return data.
+
+Verified on mainnet on 16 September 2026 against a real 0.02 SOL long entered at 97.38
+with 0.4817 USDC of collateral:
+
+```
+program answer     liquidationPriceTicks 7478  ->  74.78
+independent maths                               74.7788
+difference                                       0.0012   (tick rounding)
+```
+
+The independent check solves *equity = maintenance margin*, with the maintenance ratio
+derived from the payload itself — exactly 2.00 % on this market. Entry price was
+cross-checked twice as well: 97.38 from the raw account bytes, 97.38 from the program.
+
+Two properties worth stating, because they are the reason to trust a safety threshold:
+
+- **The alert is computed entirely in ticks.** Mark and liquidation arrive in the same
+  unit, so no conversion sits between the data and the decision. A unit mistake cannot
+  move the threshold. The dollar figure shown on screen derives its tick factor from the
+  market itself rather than assuming a convention.
+- **When the program does not answer, the app shows nothing and fires nothing** — and
+  says why. False reassurance is worse than silence; silent absence is worse than both.
+
+Everything above runs in Kotlin with no SDK: Base58, transaction serialisation and the
+56-byte return decoding are implemented here, each verified separately against the
+official tooling before being trusted.
 
 The last two need the Phoenix trader account decoded in Kotlin. The byte layout has been
 partially mapped against the official SDK (collateral at offset 88, flags at 96 on a
