@@ -169,16 +169,15 @@ fun MarketsScreen(
                         Spacer(Modifier.width(9.dp))
                         Column {
                             Text("NEXA", fontWeight = FontWeight.Black, color = NexaGold, fontSize = 20.sp)
+                            // 🔴 L'empreinte du commit est sur la MEME ligne que le
+                            // sous-titre, pas en dessous. En troisieme ligne, elle etait
+                            // rognee par la hauteur fixe de la barre de titre : invisible
+                            // sur l'appareil, donc inutile — constate sur capture d'ecran
+                            // le 16 septembre 2026, alors que c'est justement la ligne qui
+                            // sert a savoir quelle version on teste.
                             Text(
-                                "Phoenix perps · ${markets.size} markets",
-                                color = NexaMuted, fontSize = 11.sp,
-                            )
-                            // Empreinte du commit d'ou vient cet APK. Une ligne de neuf
-                            // caracteres qui evite de tester la mauvaise version sans
-                            // jamais pouvoir s'en apercevoir.
-                            Text(
-                                "build ${BuildConfig.BUILD_SHA.take(7)}",
-                                color = NexaMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace,
+                                "Phoenix perps · ${markets.size} markets · ${BuildConfig.BUILD_SHA.take(7)}",
+                                color = NexaMuted, fontSize = 10.sp,
                             )
                         }
                     }
@@ -473,7 +472,19 @@ private fun PositionCard(p: Position) {
                 PosField("Value", "$" + PriceMonitorService.fmt(p.notionalUsd))
             }
             // Seuil de liquidation — affiche UNIQUEMENT si le programme Phoenix l'a
-            // donne. Rien ici veut dire « on ne sait pas », jamais « tu es en securite ».
+            // donne. On ne fabrique jamais ce chiffre.
+            //
+            // Quand il manque, on l'ECRIT au lieu de n'afficher rien : une ligne absente
+            // est indistinguable d'une version trop ancienne, ce qui a deja coute une
+            // seance de test le 16 septembre. Un manque annonce se diagnostique ;
+            // un manque silencieux se devine.
+            if (p.liquidationPriceUsd == null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Liquidation price unavailable right now",
+                    color = NexaMuted, fontSize = 10.sp,
+                )
+            }
             p.liquidationPriceUsd?.let { liq ->
                 val d = p.liquidationDistancePct
                 Spacer(Modifier.height(4.dp))
