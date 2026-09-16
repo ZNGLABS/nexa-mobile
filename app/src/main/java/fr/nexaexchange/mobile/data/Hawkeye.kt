@@ -177,15 +177,43 @@ object Hawkeye {
 
     // ── Decodage ------------------------------------------------------------
 
+    /**
+     * Disposition des 56 octets de reponse :
+     *
+     *    0  u64  marqueur 0xd23d34b160ef6841
+     *    8  u32  assetId
+     *   12  u16  version du format
+     *   14  u8   statut   (0 = aucune position, 1 = trouvee)
+     *   15  u8   sens     (0 = plat, 1 = long, 2 = short)
+     *   16  u64  liquidationPriceTicks
+     *   24  u64  markPriceTicks
+     *   32  u64  entryPriceQuoteLotsPerBaseLot
+     *   40  u64  effectiveCollateralQuoteLots
+     *   48  u64  maintenanceMarginQuoteLots
+     *
+     * 🔴 CORRECTION DU 16 SEPTEMBRE 2026 — ET LA LECON QUI VA AVEC.
+     * J'avais lu le statut a l'octet 13 et le sens a l'octet 14, parce que j'avais
+     * etabli la disposition sur une SEULE reponse : celle d'un compte SANS position,
+     * ou ces octets valent tous zero. Les deux lectures donnaient le meme resultat,
+     * donc l'erreur etait invisible.
+     *
+     * Sur une vraie position, les octets 12 a 15 valent `01 00 01 01` : la version
+     * occupe deux octets, pas un. Mon decodeur lisait donc le remplissage a la place
+     * du statut, concluait « aucune position » et l'application n'affichait aucun prix
+     * de liquidation — sans la moindre erreur, ce qui est le pire des cas.
+     *
+     * Une disposition binaire validee sur un seul echantillon, et de surcroit
+     * l'echantillon vide, n'est pas validee.
+     */
     private fun decodeReturn(raw: ByteArray): LiquidationView? {
         if (raw.size < 56) return null
         val bb = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN)
-        if (bb.getLong(0) != MAGIC) return null      // pas notre reponse
-        if (raw[12].toInt() != 1) return null        // version inattendue : on s'abstient
+        if (bb.getLong(0) != MAGIC) return null           // pas notre reponse
+        if (bb.getShort(12).toInt() != 1) return null     // version inattendue : on s'abstient
         return LiquidationView(
             assetId = bb.getInt(8),
-            hasPosition = raw[13].toInt() == 1,
-            isLong = raw[14].toInt() == 1,
+            hasPosition = raw[14].toInt() == 1,
+            isLong = raw[15].toInt() == 1,
             liquidationPriceTicks = bb.getLong(16),
             markPriceTicks = bb.getLong(24),
             effectiveCollateralUsdc = bb.getLong(40) / 1_000_000.0,
