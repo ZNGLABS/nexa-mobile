@@ -32,8 +32,19 @@ jobs:
         with:
           gradle-version: '8.14.5'
 
+      # `packages: ''` empeche l'action d'installer sa liste par defaut.
+      #
+      # POURQUOI : le 16 septembre 2026, deux compilations d'affilee sont tombees ici.
+      # Le journal contenait la licence « Android SDK PREVIEW » et ses clauses sur les
+      # « Pre-Release Materials » — l'action tentait donc d'installer un paquet en
+      # pre-version, dont la licence n'est pas couverte par l'acceptation ordinaire.
+      # Rien n'avait change chez nous : c'est l'image de la machine de compilation qui
+      # a bouge. On cesse de dependre de ce que l'action choisit toute seule, et on
+      # installe exactement les deux paquets dont on a besoin, a l'etape suivante.
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       # sdkmanager telecharge depuis les miroirs Google et echoue de temps en temps
       # pour des raisons qui ne nous regardent pas — le 16 septembre 2026, une
@@ -44,6 +55,8 @@ jobs:
       # cher en confiance qu'en minutes.
       - name: Install SDK components
         run: |
+          # On accepte TOUTES les licences, y compris celle des pre-versions : c'est
+          # precisement celle qui manquait et qui a fait echouer les compilations 12 et 13.
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           for essai in 1 2 3; do
             if sdkmanager "platforms;android-35" "build-tools;35.0.0"; then
