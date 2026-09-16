@@ -183,12 +183,16 @@ object PhoenixApi {
             // les deux champs a null : l'ecran n'affichera aucun seuil et le service
             // ne declenchera aucune alerte. Se taire vaut mieux que se tromper sur un
             // chiffre de securite.
-            val vue = try { Hawkeye.viewLiquidation(pda, p.assetId) } catch (e: Exception) { null }
-            if (vue == null || !vue.hasPosition) base
-            else base.copy(
-                liquidationPriceUsd = Hawkeye.liquidationUsd(vue, mark),
-                liquidationDistancePct = Hawkeye.distancePct(vue),
-            )
+            val res = Hawkeye.viewLiquidation(pda, p.assetId)
+            val vue = res.view
+            if (vue == null || !vue.hasPosition) {
+                base.copy(liquidationError = res.error ?: "program reports no position")
+            } else {
+                base.copy(
+                    liquidationPriceUsd = Hawkeye.liquidationUsd(vue, mark),
+                    liquidationDistancePct = Hawkeye.distancePct(vue),
+                )
+            }
         }
     }
 

@@ -150,6 +150,8 @@ data class Position(
      */
     val liquidationPriceUsd: Double? = null,
     val liquidationDistancePct: Double? = null,
+    /** Motif de l'echec de lecture, affiche tel quel pour pouvoir diagnostiquer. */
+    val liquidationError: String? = null,
 ) {
     companion object {
         fun from(raw: TraderAccount.RawPosition, market: Market, mark: Double): Position {

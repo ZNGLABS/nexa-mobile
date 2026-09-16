@@ -481,8 +481,8 @@ private fun PositionCard(p: Position) {
             if (p.liquidationPriceUsd == null) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Liquidation price unavailable right now",
-                    color = NexaMuted, fontSize = 10.sp,
+                    "Liquidation unavailable — " + (p.liquidationError ?: "unknown"),
+                    color = NexaMuted, fontSize = 9.sp,
                 )
             }
             p.liquidationPriceUsd?.let { liq ->

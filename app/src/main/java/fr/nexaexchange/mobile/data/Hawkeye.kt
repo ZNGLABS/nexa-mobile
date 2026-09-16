@@ -53,7 +53,20 @@ import java.util.concurrent.TimeUnit
  */
 object Hawkeye {
 
-    private const val RPC = "https://solana-rpc.publicnode.com"
+    /**
+     * `simulateTransaction` n'est pas servi par tous les RPC publics — publicnode
+     * refuse deja les requetes indexees (`getMultipleAccounts`, `getProgramAccounts`),
+     * verifie le 13 septembre 2026. On essaie donc plusieurs points d'entree dans
+     * l'ordre, et on retient le premier qui repond vraiment.
+     *
+     * L'en-tete User-Agent personnalise a ete RETIRE : plusieurs RPC publics filtrent
+     * les clients qu'ils ne reconnaissent pas, et c'est la difference la plus visible
+     * entre l'appel qui marche depuis un navigateur et celui du telephone.
+     */
+    private val RPCS = listOf(
+        "https://solana-rpc.publicnode.com",
+        "https://api.mainnet-beta.solana.com",
+    )
     private val JSON_MEDIA = "application/json".toMediaType()
 
     /** Programme de lecture Hawkeye (distinct du programme Phoenix lui-meme). */
@@ -182,39 +195,72 @@ object Hawkeye {
 
     // ── Appel ---------------------------------------------------------------
 
-    suspend fun viewLiquidation(traderPda: String, assetId: Int): LiquidationView? =
+    /**
+     * Resultat d'une lecture : soit la vue, soit la raison de l'echec.
+     *
+     * POURQUOI UNE RAISON ET PAS UN SIMPLE null : le 16 septembre 2026, l'application
+     * a affiche « prix de liquidation indisponible » sur un vrai appareil alors que la
+     * meme requete fonctionnait depuis un navigateur. Sans motif remonte jusqu'a
+     * l'ecran, diagnostiquer revenait a deviner — une compilation et un test par
+     * hypothese. Le motif coute trois lignes et supprime la devinette.
+     */
+    data class Outcome(val view: LiquidationView?, val error: String?)
+
+    suspend fun viewLiquidation(traderPda: String, assetId: Int): Outcome =
         withContext(Dispatchers.IO) {
-            val tx = Base64.encodeToString(buildTransaction(traderPda, assetId), Base64.NO_WRAP)
-            val params = JSONArray()
-                .put(tx)
-                .put(
-                    JSONObject()
-                        .put("encoding", "base64")
-                        .put("sigVerify", false)
-                        .put("replaceRecentBlockhash", true)
-                )
+            val tx = try {
+                Base64.encodeToString(buildTransaction(traderPda, assetId), Base64.NO_WRAP)
+            } catch (e: Exception) {
+                // Echec de construction : c'est notre code, pas le reseau. On le nomme.
+                return@withContext Outcome(null, "build: ${e.javaClass.simpleName} ${e.message.orEmpty()}".take(80))
+            }
+
             val body = JSONObject()
                 .put("jsonrpc", "2.0").put("id", 1)
-                .put("method", "simulateTransaction").put("params", params)
+                .put("method", "simulateTransaction")
+                .put(
+                    "params",
+                    JSONArray().put(tx).put(
+                        JSONObject()
+                            .put("encoding", "base64")
+                            .put("sigVerify", false)
+                            .put("replaceRecentBlockhash", true)
+                    )
+                )
                 .toString()
 
-            val req = Request.Builder()
-                .url(RPC)
-                .post(body.toRequestBody(JSON_MEDIA))
-                .header("User-Agent", "NEXA-Mobile-Android")
-                .build()
-
-            client.newCall(req).execute().use { res ->
-                if (!res.isSuccessful) return@withContext null
-                val root = JSONObject(res.body?.string().orEmpty())
-                val value = root.optJSONObject("result")?.optJSONObject("value")
-                    ?: return@withContext null
-                // Une simulation en erreur ne doit JAMAIS produire un seuil affiche.
-                if (!value.isNull("err")) return@withContext null
-                val b64 = value.optJSONObject("returnData")?.optJSONArray("data")?.optString(0)
-                    ?: return@withContext null
-                decodeReturn(Base64.decode(b64, Base64.DEFAULT))
+            val motifs = ArrayList<String>(RPCS.size)
+            for (url in RPCS) {
+                val court = url.removePrefix("https://").substringBefore('/').take(14)
+                try {
+                    val req = Request.Builder().url(url).post(body.toRequestBody(JSON_MEDIA)).build()
+                    client.newCall(req).execute().use { res ->
+                        val txt = res.body?.string().orEmpty()
+                        if (!res.isSuccessful) {
+                            motifs.add("$court HTTP ${res.code}"); return@use
+                        }
+                        val root = JSONObject(txt)
+                        root.optJSONObject("error")?.let {
+                            motifs.add("$court ${it.optString("message").take(40)}"); return@use
+                        }
+                        val value = root.optJSONObject("result")?.optJSONObject("value")
+                        if (value == null) { motifs.add("$court no value"); return@use }
+                        // Une simulation en erreur ne produit JAMAIS de seuil affiche.
+                        if (!value.isNull("err")) {
+                            motifs.add("$court sim ${value.opt("err").toString().take(40)}"); return@use
+                        }
+                        val b64 = value.optJSONObject("returnData")?.optJSONArray("data")?.optString(0)
+                        if (b64.isNullOrEmpty()) { motifs.add("$court no returnData"); return@use }
+                        val raw = Base64.decode(b64, Base64.DEFAULT)
+                        val decoded = decodeReturn(raw)
+                        if (decoded == null) { motifs.add("$court decode ${raw.size}B"); return@use }
+                        return@withContext Outcome(decoded, null)
+                    }
+                } catch (e: Exception) {
+                    motifs.add("$court ${e.javaClass.simpleName}")
+                }
             }
+            Outcome(null, motifs.joinToString(" | ").take(110))
         }
 
     /**
