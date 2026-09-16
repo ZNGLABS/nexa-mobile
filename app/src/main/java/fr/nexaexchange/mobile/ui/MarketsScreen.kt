@@ -168,7 +168,16 @@ fun MarketsScreen(
                         )
                         Spacer(Modifier.width(9.dp))
                         Column {
-                            Text("NEXA", fontWeight = FontWeight.Black, color = NexaGold, fontSize = 20.sp)
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text("NEXA", fontWeight = FontWeight.Black, color = NexaGold, fontSize = 20.sp)
+                                Spacer(Modifier.width(5.dp))
+                                Text(
+                                    "SENTINEL",
+                                    color = NexaMuted, fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(bottom = 2.dp),
+                                )
+                            }
                             // 🔴 L'empreinte du commit est sur la MEME ligne que le
                             // sous-titre, pas en dessous. En troisieme ligne, elle etait
                             // rognee par la hauteur fixe de la barre de titre : invisible

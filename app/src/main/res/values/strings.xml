@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NEXA</string>
+    <!-- Nom TEMPORAIRE, le temps du hackathon.
+         L'application publiee sur le dApp Store s'appelle deja NEXA et porte la meme
+         icone : deux icones identiques sur le meme telephone, on finit par ouvrir la
+         mauvaise. « Sentinel » dit aussi ce que cette couche fait de plus — surveiller.
+         Au moment de la fusion dans fr.nexaexchange.dex (apres le 9 octobre), il n'y
+         aura plus qu'une application et le nom redeviendra NEXA. -->
+    <string name="app_name">NEXA Sentinel</string>
 
     <string name="channel_monitor">Background monitor</string>
     <string name="channel_monitor_desc">Silent, permanent notice shown while NEXA watches prices in the background.</string>
