@@ -18,6 +18,9 @@
     <string name="alert_above">rose above</string>
     <string name="alert_below">fell below</string>
 
+    <string name="liq_title">%1$s position at risk</string>
+    <string name="liq_body">Your %1$s on %2$s is %3$s%% from liquidation at %4$s. Phoenix computes this price on-chain.</string>
+
     <string name="widget_waiting">waiting…</string>
     <string name="widget_description">NEXA — live price of the market you follow</string>
 </resources>

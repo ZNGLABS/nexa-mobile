@@ -176,7 +176,19 @@ object PhoenixApi {
         return decoded.positions.mapNotNull { p ->
             val mk = parAsset[p.assetId] ?: return@mapNotNull null
             val mark = prices[mk.symbol]?.optDoubleOrNull("mark_price") ?: return@mapNotNull null
-            Position.from(p, mk, mark)
+            val base = Position.from(p, mk, mark)
+
+            // Le prix de liquidation vient du programme Phoenix, pas d'une formule
+            // maison. Si la simulation echoue pour une raison quelconque, on laisse
+            // les deux champs a null : l'ecran n'affichera aucun seuil et le service
+            // ne declenchera aucune alerte. Se taire vaut mieux que se tromper sur un
+            // chiffre de securite.
+            val vue = try { Hawkeye.viewLiquidation(pda, p.assetId) } catch (e: Exception) { null }
+            if (vue == null || !vue.hasPosition) base
+            else base.copy(
+                liquidationPriceUsd = Hawkeye.liquidationUsd(vue, mark),
+                liquidationDistancePct = Hawkeye.distancePct(vue),
+            )
         }
     }
 

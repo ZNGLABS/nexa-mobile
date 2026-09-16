@@ -142,6 +142,14 @@ data class Position(
     val pnlUsd: Double,
     val pnlPct: Double,
     val displayColor: String?,
+    /**
+     * Prix de liquidation et distance, tels que renvoyes par le programme Phoenix
+     * (voir Hawkeye.kt). `null` signifie « on ne sait pas » — et dans ce cas
+     * l'interface n'affiche RIEN plutot qu'un chiffre inventé, et le service ne
+     * declenche aucune alerte.
+     */
+    val liquidationPriceUsd: Double? = null,
+    val liquidationDistancePct: Double? = null,
 ) {
     companion object {
         fun from(raw: TraderAccount.RawPosition, market: Market, mark: Double): Position {

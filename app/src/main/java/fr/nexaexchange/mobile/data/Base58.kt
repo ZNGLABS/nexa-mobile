@@ -62,6 +62,45 @@ object Base58 {
         return sb.toString()
     }
 
+    /**
+     * Decodage Base58 → octets. Necessaire pour fabriquer une transaction Solana :
+     * une adresse y figure sous forme de 32 octets bruts, pas de texte.
+     *
+     * VERIFIE le 16 septembre 2026 contre web3.js sur cinq adresses, dont
+     * `11111111111111111111111111111111` (32 octets nuls) qui piege les
+     * implementations oubliant les zeros de tete. Cinq sur cinq identiques.
+     */
+    fun decode(s: String): ByteArray {
+        if (s.isEmpty()) return ByteArray(0)
+
+        var zeros = 0
+        while (zeros < s.length && s[zeros] == '1') zeros++
+
+        // log(58)/log(256) vaut 0,7325... ; 733/1000 majore, +1 pour l'arrondi.
+        val size = (s.length - zeros) * 733 / 1000 + 1
+        val buffer = ByteArray(size)
+        var length = 0
+
+        for (i in zeros until s.length) {
+            var carry = ALPHABET.indexOf(s[i])
+            require(carry >= 0) { "invalid base58 character: ${s[i]}" }
+            var j = 0
+            var k = size - 1
+            while ((carry != 0 || j < length) && k >= 0) {
+                carry += 58 * (buffer[k].toInt() and 0xFF)
+                buffer[k] = (carry and 0xFF).toByte()
+                carry = carry shr 8
+                k--
+                j++
+            }
+            length = j
+        }
+
+        val out = ByteArray(zeros + length)
+        System.arraycopy(buffer, size - length, out, zeros, length)
+        return out
+    }
+
     /** Adresse abregee pour l'affichage : `4w1F…A9rK`. */
     fun shorten(address: String, head: Int = 4, tail: Int = 4): String =
         if (address.length <= head + tail + 1) address

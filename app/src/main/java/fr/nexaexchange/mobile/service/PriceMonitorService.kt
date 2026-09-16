@@ -40,6 +40,15 @@ class PriceMonitorService : Service() {
     private lateinit var scope: CoroutineScope
     private lateinit var store: AlertStore
 
+    // Les metadonnees de marche ne bougent pratiquement jamais : une lecture par heure
+    // suffit, au lieu d'une par minute.
+    private var marchesCache: List<fr.nexaexchange.mobile.data.Market>? = null
+    private var marchesCacheAt = 0L
+
+    /** Palier le plus serre deja notifie, et date d'envoi, par symbole. */
+    private val dernierPalier = HashMap<String, Double>()
+    private val dernierEnvoi = HashMap<String, Long>()
+
     override fun onCreate() {
         super.onCreate()
         store = AlertStore(this)
@@ -68,6 +77,7 @@ class PriceMonitorService : Service() {
                 val prix = PhoenixApi.fetchPrices()
                 echecs = 0
                 evaluer(prix)
+                surveillerLiquidation()
                 majNotification(prix)
                 NexaWidgetProvider.refresh(applicationContext, prix)
             } catch (e: Exception) {
@@ -109,6 +119,67 @@ class PriceMonitorService : Service() {
         }
     }
 
+    /**
+     * Surveillance de la distance a la liquidation, application fermee.
+     *
+     * C'EST LA RAISON D'ETRE DE CETTE APPLICATION. Un onglet de navigateur ferme ne
+     * previendra jamais personne qu'il va etre liquide a trois heures du matin.
+     *
+     * Le chiffre surveille vient du programme Phoenix lui-meme (voir Hawkeye.kt), pas
+     * d'une formule reconstituee. Quand il est indisponible, on n'alerte PAS : une
+     * fausse tranquillite serait pire que pas d'alerte du tout, et une fausse alarme
+     * apprend a l'utilisateur a ignorer les suivantes.
+     */
+    private suspend fun surveillerLiquidation() {
+        val wallet = store.walletAddress ?: return
+
+        if (marchesCache == null || System.currentTimeMillis() - marchesCacheAt > 3_600_000) {
+            marchesCache = PhoenixApi.fetchMarkets()
+            marchesCacheAt = System.currentTimeMillis()
+        }
+        val marches = marchesCache ?: return
+
+        val positions = PhoenixApi.fetchPositions(wallet, marches) ?: return
+        val maintenant = System.currentTimeMillis()
+
+        for (p in positions) {
+            val d = p.liquidationDistancePct ?: continue   // inconnu → on se tait
+            val palier = PALIERS.firstOrNull { d <= it } ?: continue
+
+            // Un palier ne se redeclenche pas tant qu'on n'est pas passe sous un palier
+            // PLUS SERRE. Sans cela, un prix qui oscille autour de 15 % enverrait une
+            // notification par minute et l'utilisateur couperait tout.
+            val cle = p.symbol
+            val dernier = dernierPalier[cle]
+            if (dernier != null && palier >= dernier &&
+                maintenant - (dernierEnvoi[cle] ?: 0L) < RAPPEL_MS
+            ) continue
+
+            dernierPalier[cle] = palier
+            dernierEnvoi[cle] = maintenant
+
+            val prixLiq = p.liquidationPriceUsd
+            Notifications.fireAlert(
+                this,
+                (LIQ_NOTIF_BASE + p.assetId).toLong(),
+                getString(fr.nexaexchange.mobile.R.string.liq_title, p.symbol),
+                getString(
+                    fr.nexaexchange.mobile.R.string.liq_body,
+                    if (p.isLong) "long" else "short",
+                    p.symbol,
+                    String.format(Locale.US, "%.1f", d),
+                    prixLiq?.let { "$" + fmt(it) } ?: "?",
+                ),
+            )
+        }
+
+        // Position refermee ou eloignee du danger : on oublie son historique pour que
+        // la prochaine approche redeclenche normalement.
+        val ouverts = positions.map { it.symbol }.toSet()
+        dernierPalier.keys.retainAll { it in ouverts }
+        dernierEnvoi.keys.retainAll { it in ouverts }
+    }
+
     private fun majNotification(prix: Map<String, Double>) {
         val alertes = store.all().count { it.enabled }
         val suivi = store.widgetSymbol
@@ -137,6 +208,19 @@ class PriceMonitorService : Service() {
     companion object {
         private const val INTERVAL_MS = 60_000L
         private const val COOLDOWN_MS = 15 * 60_000L
+
+        /**
+         * Paliers d'alerte, en pourcentage de distance au prix de liquidation.
+         * Du plus serre au plus large : on retient le premier franchi, donc le plus
+         * grave. 15 % laisse le temps de reagir, 3 % est un dernier avertissement.
+         */
+        private val PALIERS = listOf(3.0, 8.0, 15.0)
+
+        /** Rappel d'un meme palier, s'il dure. */
+        private const val RAPPEL_MS = 30 * 60_000L
+
+        /** Base des identifiants de notification de liquidation, + assetId. */
+        private const val LIQ_NOTIF_BASE = 20_000
 
         /**
          * Affiche un prix avec une precision adaptee a son ordre de grandeur.

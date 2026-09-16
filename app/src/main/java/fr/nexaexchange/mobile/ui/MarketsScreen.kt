@@ -472,6 +472,33 @@ private fun PositionCard(p: Position) {
                 PosField("Mark", "$" + PriceMonitorService.fmt(p.markPrice))
                 PosField("Value", "$" + PriceMonitorService.fmt(p.notionalUsd))
             }
+            // Seuil de liquidation — affiche UNIQUEMENT si le programme Phoenix l'a
+            // donne. Rien ici veut dire « on ne sait pas », jamais « tu es en securite ».
+            p.liquidationPriceUsd?.let { liq ->
+                val d = p.liquidationDistancePct
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Liquidation", color = NexaMuted, fontSize = 9.sp)
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        "$" + PriceMonitorService.fmt(liq),
+                        color = NexaRed, fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace,
+                    )
+                    if (d != null) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            String.format(java.util.Locale.US, "%.1f%% away", d),
+                            color = when {
+                                d < 5 -> NexaRed
+                                d < 15 -> NexaGold
+                                else -> NexaMuted
+                            },
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            }
         }
     }
 }
