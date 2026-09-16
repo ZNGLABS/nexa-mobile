@@ -35,8 +35,26 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      # sdkmanager telecharge depuis les miroirs Google et echoue de temps en temps
+      # pour des raisons qui ne nous regardent pas — le 16 septembre 2026, une
+      # compilation est tombee ici alors que le code etait sain, et la compilation
+      # precedente avait passe la meme commande sans broncher.
+      # Trois tentatives espacees, et on accepte les licences au cas ou l'image de la
+      # machine changerait. Une chaine de compilation qui echoue au hasard coute plus
+      # cher en confiance qu'en minutes.
       - name: Install SDK components
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          for essai in 1 2 3; do
+            if sdkmanager "platforms;android-35" "build-tools;35.0.0"; then
+              echo "SDK installe (tentative $essai)"
+              exit 0
+            fi
+            echo "tentative $essai en echec, nouvelle tentative dans 20 s"
+            sleep 20
+          done
+          echo "sdkmanager a echoue trois fois de suite"
+          exit 1
 
       # AUCUN SECRET N'EST NECESSAIRE. L'APK est signe avec la cle de debogage que
       # Gradle genere lui-meme : il s'installe normalement pour une demonstration,
