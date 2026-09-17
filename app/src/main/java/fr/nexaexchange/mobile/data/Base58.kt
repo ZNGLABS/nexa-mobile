@@ -101,6 +101,19 @@ object Base58 {
         return out
     }
 
+    /**
+     * L'entree est-elle une adresse Solana valide, c'est-a-dire exactement 32 octets ?
+     *
+     * Ajoute le 17 septembre 2026 pendant la revue de securite. [decode] rendait
+     * fidelement les octets de ce qu'on lui donnait, y compris d'une chaine tronquee ou
+     * d'un champ JSON inattendu : la transaction construite ensuite etait mal formee, la
+     * simulation echouait, et l'ecran disait « prix de liquidation indisponible » sans
+     * que rien n'indique que la faute venait d'une adresse de 31 octets. On verifie donc
+     * a l'entree, la ou l'information existe encore.
+     */
+    fun isValidAddress(s: String): Boolean =
+        s.length in 32..44 && runCatching { decode(s).size == 32 }.getOrDefault(false)
+
     /** Adresse abregee pour l'affichage : `4w1F…A9rK`. */
     fun shorten(address: String, head: Int = 4, tail: Int = 4): String =
         if (address.length <= head + tail + 1) address

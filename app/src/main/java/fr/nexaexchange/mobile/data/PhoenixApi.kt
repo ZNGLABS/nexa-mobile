@@ -132,29 +132,61 @@ object PhoenixApi {
     }
 
     /**
-     * Adresse du compte trader d'un portefeuille.
+     * Adresse du compte trader d'un portefeuille, MISE EN CACHE POUR LA SESSION.
      *
      * On la DEMANDE a Phoenix au lieu de la deriver nous-memes. Deriver un PDA exige de
      * recopier la regle de derivation du programme ; si Phoenix la change, notre copie
      * pointerait silencieusement sur un compte inexistant et l'application afficherait
      * « aucune position » a quelqu'un qui en a. Une requete de plus vaut mieux qu'un
      * mensonge muet.
+     *
+     * 🔴 LE CACHE N'EST PAS UNE OPTIMISATION, C'EST UNE CORRECTION DE CONFIDENTIALITE.
+     * Revue du 17 septembre 2026 : ce compte etait redemande a CHAQUE cycle du moniteur,
+     * soit toutes les 60 secondes, tant que la surveillance tournait. Autrement dit
+     * l'adresse du portefeuille de l'utilisateur partait chez un tiers 1 440 fois par
+     * jour, nuit comprise — de quoi lui reconstituer, depuis son adresse IP, quand son
+     * telephone est allume et quel portefeuille il surveille. Le tout pour redemander une
+     * valeur qui, pour un portefeuille donne, ne change JAMAIS : un PDA est deterministe.
+     *
+     * Une seule requete par portefeuille et par session suffit donc. En memoire
+     * uniquement : rien de plus n'est ecrit sur le disque, et l'application oubliee
+     * redemande proprement au prochain lancement.
      */
-    suspend fun fetchTraderPda(wallet: String): String? = withContext(Dispatchers.IO) {
-        val payload = JSONObject()
-            .put("traderAuthority", wallet)
-            .put("txFeePayer", wallet)
-            .toString()
-        val req = Request.Builder()
-            .url("$BASE/v1/exchange/build-register-ixs")
-            .post(payload.toRequestBody("application/json".toMediaType()))
-            .header("User-Agent", "NEXA-Mobile-Android")
-            .build()
-        client.newCall(req).execute().use { res ->
-            val txt = res.body?.string().orEmpty()
-            if (!res.isSuccessful) return@withContext null
-            JSONObject(txt).optString("traderPda").ifEmpty { null }
+    @Volatile private var pdaCacheWallet: String? = null
+    @Volatile private var pdaCacheValue: String? = null
+
+    suspend fun fetchTraderPda(wallet: String): String? {
+        pdaCacheValue?.let { if (pdaCacheWallet == wallet) return it }
+        return withContext(Dispatchers.IO) {
+            val payload = JSONObject()
+                .put("traderAuthority", wallet)
+                .put("txFeePayer", wallet)
+                .toString()
+            val req = Request.Builder()
+                .url("$BASE/v1/exchange/build-register-ixs")
+                .post(payload.toRequestBody("application/json".toMediaType()))
+                .header("User-Agent", "NEXA-Mobile-Android")
+                .build()
+            client.newCall(req).execute().use { res ->
+                val txt = res.body?.string().orEmpty()
+                if (!res.isSuccessful) return@withContext null
+                val pda = JSONObject(txt).optString("traderPda").ifEmpty { null }
+                    ?: return@withContext null
+                // Une adresse Solana fait 32 octets. Un champ tronque ou fantaisiste
+                // produirait une transaction mal formee, simulee dans le vide, et un
+                // « prix de liquidation indisponible » sans explication.
+                if (!Base58.isValidAddress(pda)) return@withContext null
+                pdaCacheWallet = wallet
+                pdaCacheValue = pda
+                pda
+            }
         }
+    }
+
+    /** Vide le cache du PDA — appele a la deconnexion du portefeuille. */
+    fun forgetTraderPda() {
+        pdaCacheWallet = null
+        pdaCacheValue = null
     }
 
     /**

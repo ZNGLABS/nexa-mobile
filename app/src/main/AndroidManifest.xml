@@ -34,17 +34,49 @@
         </intent>
     </queries>
 
+    <!--
+        allowBackup="false" — DELIBERE, et c'est le point le plus important de ce fichier.
+
+        Avec la valeur par defaut (true), tout le repertoire de preferences privees de
+        l'application part dans la sauvegarde automatique Android (Google Drive de
+        l'utilisateur) et ressort par `adb backup` sur un appareil qui l'autorise. Or ces
+        preferences contiennent `wallet_auth_token`, le jeton de session emis par le
+        portefeuille. Ce jeton ne deplace aucun fonds — chaque transaction reste approuvee
+        dans le portefeuille — mais il identifie une session autorisee au nom de
+        l'utilisateur, et il n'a aucune raison de quitter le telephone.
+
+        Le commentaire de AlertStore disait que ce jeton etait « illisible par les autres
+        applications sur un Android non roote ». C'est vrai du bac a sable applicatif, et
+        c'etait faux au niveau de la sauvegarde : allowBackup contournait precisement cette
+        isolation. On ferme.
+
+        Ce qu'on perd, dit franchement : les alertes de prix et le portefeuille memorise ne
+        suivent plus lors d'un changement de telephone. Pour une poignee d'alertes
+        recreables en dix secondes, c'est le bon echange.
+    -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.NexaMobile">
 
+        <!--
+            taskAffinity="" — l'activite ne partage sa pile avec personne.
+
+            singleTask + exported, c'est la configuration que vise le detournement
+            d'affinite de tache : une application malveillante declare la meme affinite
+            et sa propre activite se glisse dans notre pile, la ou l'utilisateur croit
+            etre chez nous. Android 12 a largement referme la porte, mais minSdk vaut 26
+            ici — donc Android 8, 9, 10 et 11 restent servis, et la porte y est ouverte.
+            Une affinite vide isole la pile ; cela ne coute rien et ne change rien au
+            comportement de lancement.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
+            android:taskAffinity=""
             android:theme="@style/Theme.NexaMobile">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -57,6 +89,18 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!--
+            exported="true" est ici obligatoire ET sans risque, les deux a la fois.
+
+            Obligatoire : c'est le systeme, une autre application au sens d'Android, qui
+            delivre BOOT_COMPLETED. Un recepteur non exporte ne le recevrait jamais et la
+            relance apres redemarrage serait morte silencieusement.
+
+            Sans risque : BOOT_COMPLETED est une « protected broadcast ». Seul le systeme
+            peut l'emettre ; toute application tierce qui essaie prend une SecurityException.
+            Le recepteur verifie en plus l'action recue, puis ne fait rien tant que
+            l'utilisateur n'a pas lui-meme active la surveillance.
+        -->
         <receiver
             android:name=".service.BootReceiver"
             android:exported="true">

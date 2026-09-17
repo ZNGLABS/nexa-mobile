@@ -8,6 +8,7 @@ import com.solana.mobilewalletadapter.clientlib.MobileWalletAdapter
 import com.solana.mobilewalletadapter.clientlib.TransactionResult
 import fr.nexaexchange.mobile.data.AlertStore
 import fr.nexaexchange.mobile.data.Base58
+import fr.nexaexchange.mobile.data.PhoenixApi
 
 /**
  * Connexion au portefeuille par Mobile Wallet Adapter.
@@ -97,6 +98,10 @@ class WalletManager(context: Context) {
         adapter.authToken = null
         store.walletAddress = null
         store.walletAuthToken = null
+        // Le compte trader derive du portefeuille : le garder en memoire apres une
+        // deconnexion, ce serait continuer a tenir en RAM une donnee que l'utilisateur
+        // vient justement de demander d'oublier.
+        PhoenixApi.forgetTraderPda()
     }
 
     /**

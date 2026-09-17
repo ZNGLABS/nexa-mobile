@@ -88,7 +88,18 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    // androidx.work RETIRE le 17 septembre 2026 — il n'a jamais servi.
+    //
+    // La surveillance tourne dans un service de premier plan, relance par BootReceiver :
+    // aucune ligne du projet n'importe WorkManager. La bibliotheque etait tout de meme
+    // embarquee, avec son initialiseur, et surtout elle ajoutait au manifeste fusionne :
+    //
+    //     uses-permission#android.permission.WAKE_LOCK
+    //     ADDED from [androidx.work:work-runtime:2.9.0]
+    //
+    // Une permission de plus dans la liste que lit l'utilisateur, pour du code mort.
+    // La regle appliquee ici : une dependance qu'on n'utilise pas est une dependance
+    // qu'on ne devrait pas expedier.
 
     // OkHttp plutot que HttpURLConnection : gestion des delais, des reprises et du
     // pool de connexions deja eprouvee, ce qui compte pour un service qui tourne en
@@ -98,7 +109,33 @@ dependencies {
     // Mobile Wallet Adapter — l'implementation officielle de Solana Mobile.
     // L'application ne detient JAMAIS de cle privee : elle demande au portefeuille
     // installe (Phantom, Solflare, Seed Vault du Seeker) d'autoriser et de signer.
-    implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.8")
+    //
+    // 🔴 LES EXCLUSIONS NE SONT PAS COSMETIQUES — trouve le 17 septembre 2026 en lisant
+    // le manifeste FUSIONNE de l'APK, pas le notre.
+    //
+    // MWA 2.0.8 declare `androidx.test:core`, `junit` et `hamcrest` en portee normale et
+    // non en portee de test. Ces bibliotheques partaient donc dans l'APK de PRODUCTION,
+    // et `androidx.test:core` y ajoutait une permission que nous n'avons jamais demandee :
+    //
+    //     uses-permission#android.permission.REORDER_TASKS
+    //     ADDED from [androidx.test:core:1.6.1]
+    //
+    // Un moniteur de prix n'a aucune raison de pouvoir reordonner les taches du systeme,
+    // et un utilisateur qui lit la liste des permissions n'a aucun moyen de savoir d'ou
+    // elle sort. Du code de test embarque en production, c'est en plus de la surface
+    // d'attaque offerte pour rien.
+    //
+    // VERIFIE AVANT D'EXCLURE : aucune classe des trois jars de MWA 2.0.8 ne reference
+    // `androidx/test`, `org/junit` ni `org/hamcrest`. La dependance est declaree mais
+    // jamais utilisee — retirer ces bibliotheques ne peut donc pas provoquer de
+    // NoClassDefFoundError a l'execution. C'est une erreur d'emballage chez l'editeur,
+    // pas une dependance reelle.
+    implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.8") {
+        exclude(group = "androidx.test")
+        exclude(group = "androidx.test.ext")
+        exclude(group = "junit")
+        exclude(group = "org.hamcrest")
+    }
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
