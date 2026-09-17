@@ -1,0 +1,129 @@
+name: Build APK
+
+# Pourquoi une CI et pas une compilation locale : le poste de travail n'a pas de
+# chaine Android, et la CI donne en prime un lien de telechargement public pour
+# l'APK, exige par le formulaire de soumission CLOCK IN.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Le bit executable de gradlew, remis si GitHub l'a perdu.
+      #
+      # POURQUOI CETTE ETAPE EXISTE : un fichier ajoute par l'interface web de GitHub
+      # est toujours enregistre en mode 100644. Le wrapper pousse ainsi se clone en
+      # lecture seule et « ./gradlew » repond « Permission denied » — verifie le
+      # 17 septembre 2026 sur un clone neuf. La CI, elle, ne s'en apercoit jamais :
+      # elle appelle le binaire gradle directement. Cette etape corrige le mode une
+      # fois pour toutes et ne fait plus rien ensuite.
+      - name: Keep gradlew executable
+        run: |
+          if [ "$(git ls-files -s gradlew | cut -d' ' -f1)" != "100755" ]; then
+            echo "gradlew est en 100644 — on le repasse en 100755"
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git update-index --chmod=+x gradlew
+            git commit -m "build: mark gradlew executable (the web upload had dropped the bit)"
+            git push
+          else
+            echo "gradlew est deja executable"
+          fi
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # Gradle 8.14.5, dernier de la serie 8 — contemporain d'AGP 8.10.1 et de
+      # Kotlin 2.1.21. Voir la note detaillee dans le build.gradle.kts racine :
+      # Mobile Wallet Adapter impose le SDK 35 ET des metadonnees Kotlin 2.1.
+      - name: Setup Gradle 8.14.5
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.14.5'
+
+      # `packages: ''` empeche l'action d'installer sa liste par defaut.
+      #
+      # POURQUOI : le 16 septembre 2026, deux compilations d'affilee sont tombees ici.
+      # Le journal contenait la licence « Android SDK PREVIEW » et ses clauses sur les
+      # « Pre-Release Materials » — l'action tentait donc d'installer un paquet en
+      # pre-version, dont la licence n'est pas couverte par l'acceptation ordinaire.
+      # Rien n'avait change chez nous : c'est l'image de la machine de compilation qui
+      # a bouge. On cesse de dependre de ce que l'action choisit toute seule, et on
+      # installe exactement les deux paquets dont on a besoin, a l'etape suivante.
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      # sdkmanager telecharge depuis les miroirs Google et echoue de temps en temps
+      # pour des raisons qui ne nous regardent pas — le 16 septembre 2026, une
+      # compilation est tombee ici alors que le code etait sain, et la compilation
+      # precedente avait passe la meme commande sans broncher.
+      # Trois tentatives espacees, et on accepte les licences au cas ou l'image de la
+      # machine changerait. Une chaine de compilation qui echoue au hasard coute plus
+      # cher en confiance qu'en minutes.
+      - name: Install SDK components
+        run: |
+          # On accepte TOUTES les licences, y compris celle des pre-versions : c'est
+          # precisement celle qui manquait et qui a fait echouer les compilations 12 et 13.
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          for essai in 1 2 3; do
+            if sdkmanager "platforms;android-35" "build-tools;35.0.0"; then
+              echo "SDK installe (tentative $essai)"
+              exit 0
+            fi
+            echo "tentative $essai en echec, nouvelle tentative dans 20 s"
+            sleep 20
+          done
+          echo "sdkmanager a echoue trois fois de suite"
+          exit 1
+
+      # AUCUN SECRET N'EST NECESSAIRE. L'APK est signe avec la cle de debogage que
+      # Gradle genere lui-meme : il s'installe normalement pour une demonstration,
+      # et ce depot public ne contient donc aucun mot de passe ni keystore.
+      # -PbuildSha grave l'empreinte du commit DANS l'application, qui l'affiche sous
+      # son titre. Sans cela, rien ne distingue a l'ecran deux APK successifs de meme
+      # poids, et on peut tester pendant une demi-heure une version deja corrigee.
+      - name: Build APK
+        run: gradle :app:assembleRelease --no-daemon --stacktrace -PbuildSha=${{ github.sha }}
+
+      - name: Rename artifact
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk \
+             out/nexa-mobile-${{ github.sha }}.apk
+          cp app/build/outputs/apk/release/app-release.apk out/nexa-mobile-latest.apk
+          ls -lh out
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexa-mobile-apk
+          path: out/*.apk
+          retention-days: 30
+
+      # Une piece jointe de Release est telechargeable sans compte GitHub, au
+      # contraire d'un artifact de workflow. C'est ce lien-la qui ira dans le
+      # formulaire de soumission.
+      - name: Publish rolling pre-release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest out/nexa-mobile-latest.apk \
+            --title "Latest build" \
+            --notes "Automatic build of ${{ github.sha }}. Debug-signed, for review and demo." \
+            --prerelease
