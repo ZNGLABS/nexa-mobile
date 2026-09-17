@@ -62,13 +62,27 @@ secrets of any kind**.
 
 ## Build it yourself
 
-No keystore, no secret, no local Android SDK needed beyond the standard one.
+No keystore, no secret, nothing to install but a JDK and the Android SDK.
 
 ```bash
 git clone https://github.com/ZNGLABS/nexa-mobile
 cd nexa-mobile
-gradle :app:assembleRelease        # Gradle 8.4, JDK 17, Android SDK 34
+./gradlew :app:assembleRelease
 ```
+
+The wrapper fetches Gradle 8.14.5 itself. You need **JDK 17** and **Android SDK
+platform 35** (set `sdk.dir` in `local.properties`, or `ANDROID_HOME`).
+
+Measured on 17 September 2026 from a clean clone on a machine that had never built this
+project: the command above succeeds and produces an APK of **11 855 258 bytes** — the
+same byte count CI produces, so the two toolchains agree.
+
+> Until that date this repository shipped **without a Gradle wrapper**, and the
+> instructions here named Gradle 8.4 and SDK 34 — neither of which builds it. Anyone
+> cloning and running the documented command got `./gradlew: No such file or directory`,
+> or a failure on `compileSdk 35`. CI never caught it because CI installs Gradle itself
+> and never calls the wrapper. A repository that only its own CI can build is not a
+> repository someone else can clone and run.
 
 The APK lands in `app/build/outputs/apk/release/`. CI builds every commit and publishes
 the APK to the [`latest`](https://github.com/ZNGLABS/nexa-mobile/releases/tag/latest)
