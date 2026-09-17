@@ -18,6 +18,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Le bit executable de gradlew, remis si GitHub l'a perdu.
+      #
+      # POURQUOI CETTE ETAPE EXISTE : un fichier ajoute par l'interface web de GitHub
+      # est toujours enregistre en mode 100644. Le wrapper pousse ainsi se clone en
+      # lecture seule et « ./gradlew » repond « Permission denied » — verifie le
+      # 17 septembre 2026 sur un clone neuf. La CI, elle, ne s'en apercoit jamais :
+      # elle appelle le binaire gradle directement. Cette etape corrige le mode une
+      # fois pour toutes et ne fait plus rien ensuite.
+      - name: Keep gradlew executable
+        run: |
+          if [ "$(git ls-files -s gradlew | cut -d' ' -f1)" != "100755" ]; then
+            echo "gradlew est en 100644 — on le repasse en 100755"
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git update-index --chmod=+x gradlew
+            git commit -m "build: mark gradlew executable (the web upload had dropped the bit)"
+            git push
+          else
+            echo "gradlew est deja executable"
+          fi
+
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
