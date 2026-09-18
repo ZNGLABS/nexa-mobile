@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -588,6 +589,33 @@ private fun AlertsStrip(alerts: List<PriceAlert>, onDelete: (Long) -> Unit) {
     }
 }
 
+/**
+ * Logo d'un marche : le vrai s'il est embarque, sinon une pastille aux couleurs
+ * du marche avec ses deux premieres lettres.
+ */
+@Composable
+private fun TokenLogo(m: Market, taille: androidx.compose.ui.unit.Dp) {
+    val res = TokenLogos.forSymbol(m.symbol)
+    if (res != null) {
+        Image(
+            painter = painterResource(id = res),
+            contentDescription = m.symbol,
+            modifier = Modifier.size(taille).clip(RoundedCornerShape(taille / 2)),
+        )
+    } else {
+        Box(
+            Modifier.size(taille)
+                .background(parseColor(m.displayColor), RoundedCornerShape(taille / 2)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                m.symbol.take(2),
+                color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
 @Composable
 private fun MarketRow(m: Market, onClick: () -> Unit) {
     val chg = m.change24hPct
@@ -600,19 +628,11 @@ private fun MarketRow(m: Market, onClick: () -> Unit) {
             Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Pastille coloree plutot que le logo distant : les logos Phoenix sont
-            // des SVG, qui demanderaient une bibliotheque de plus et une requete
-            // reseau par ligne. La couleur vient des metadonnees du marche.
-            Box(
-                Modifier.size(34.dp)
-                    .background(parseColor(m.displayColor), RoundedCornerShape(17.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    m.symbol.take(2),
-                    color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                )
-            }
+            // Le vrai logo du marche, embarque dans l'APK — voir TokenLogos pour
+            // le pourquoi. La pastille coloree reste le repli : un marche ouvert
+            // par Phoenix apres la compilation n'a pas son logo, et une case vide
+            // dans une liste passe pour un defaut.
+            TokenLogo(m, 34.dp)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
