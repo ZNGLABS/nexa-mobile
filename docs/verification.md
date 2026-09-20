@@ -78,6 +78,13 @@ in this repository. Each was verified separately against the official tooling be
 trusted. The app carries no Solana SDK and no secrets of any kind: both Phoenix endpoints it
 uses are public and unauthenticated.
 
+## What is not proven yet
+
+The three liquidation alert thresholds — 15 %, 8 % and 3 % of distance — are shipped, and their
+input is the verified number above. But **no liquidation alert has been watched firing on a live
+position**, because seeing one means letting a real position drift toward liquidation. Until
+that has been observed on a device, neither this file nor the README will claim it.
+
 ## Reproducing it
 
 ```bash
@@ -87,8 +94,13 @@ cd nexa-mobile
 ```
 
 Needs **JDK 17** and **Android SDK platform 35**. Measured on 17 September 2026 from a clean
-clone on a machine that had never built this project: the command produces an APK of
-**11 855 258 bytes**, the same byte count CI produces — so the two toolchains agree.
+clone on a machine that had never built this project: the command produced an APK of
+**11 855 258 bytes** — byte for byte the size CI produced from that same commit, so the two
+toolchains agree.
+
+That figure belongs to that commit, not to the repository. The APK on the `latest` pre-release
+is whatever the newest commit builds: **12 078 074 bytes** at `6a45fb8`. The claim here is the
+agreement between a clean clone and CI at one commit, not a constant.
 
 Connect a wallet holding a Phoenix Flight position and the liquidation row appears, with the
 distance in percent. With no position, the app says so rather than showing a placeholder.
