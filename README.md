@@ -30,14 +30,17 @@ cannot, written during the hackathon window. The repository history is the evide
 | **Native price alerts** on any of 82 perp markets | No background execution, no OS notification channel | ✅ on a Seeker |
 | **Restart after reboot** (`BOOT_COMPLETED`) | An alert set at night would silently die | ✅ on a Seeker |
 | **Home screen widget** with the live mark price | No web equivalent on Android | ✅ on a Seeker |
-| **Wallet connection over Mobile Wallet Adapter** | — | ⏳ built, not yet device-tested |
+| **Wallet connection over Mobile Wallet Adapter** | — | ✅ on a Seeker |
+| **Liquidation alerts** fired at 15 / 8 / 3 % of distance | A closed tab cannot watch a position while the phone sleeps | ✅ shipped, not yet seen firing |
 
 "Verified on a Seeker" means exactly that: recorded on a physical Solana Seeker and
 watched frame by frame, not assumed from the fact that it compiles. That review found
-five defects that compiling had not — a locale bug printing `$76 761,00` in an English
-UI, an alerts list that pushed the market list off screen, rows re-sorting under the
-reader's finger every ten seconds, and a widget that would have stayed blank forever if
-the monitor was off. All are fixed in the history.
+six defects that compiling had not: a locale bug printing `$76 761,00` in an English UI;
+an alerts list that pushed the market list off screen; rows re-sorting under the reader's
+finger every ten seconds; a placeholder launcher icon; a widget that sat on `waiting…`
+for up to a minute after being placed; and — the worst of them — a widget that would have
+stayed blank forever, silently, if the monitor happened to be off. All are fixed in the
+history.
 
 ## Architecture
 
@@ -74,8 +77,13 @@ The wrapper fetches Gradle 8.14.5 itself. You need **JDK 17** and **Android SDK
 platform 35** (set `sdk.dir` in `local.properties`, or `ANDROID_HOME`).
 
 Measured on 17 September 2026 from a clean clone on a machine that had never built this
-project: the command above succeeds and produces an APK of **11 855 258 bytes** — the
-same byte count CI produces, so the two toolchains agree.
+project: the command above succeeds and produces an APK of **11 855 258 bytes** — byte
+for byte the size CI produced from the same commit, so the two toolchains agree.
+
+That figure belongs to that commit, not to the repository. The APK published on the
+`latest` pre-release is whatever the newest commit builds: **12 078 074 bytes** at
+`6a45fb8`. What is being claimed here is the agreement between a clean clone and CI at
+one commit, not a constant.
 
 > Until that date this repository shipped **without a Gradle wrapper**, and the
 > instructions here named Gradle 8.4 and SDK 34 — neither of which builds it. Anyone
@@ -137,12 +145,18 @@ Everything above runs in Kotlin with no SDK: Base58, transaction serialisation a
 56-byte return decoding are implemented here, each verified separately against the
 official tooling before being trusted.
 
-The last two need the Phoenix trader account decoded in Kotlin. The byte layout has been
-partially mapped against the official SDK (collateral at offset 88, flags at 96 on a
-1 520-byte account) but **the positions map layout is not yet verified against a real
-account holding a position**, so it is not shipped. No liquidation figure will appear in
-this app until it is checked against ground truth — a wrong safety threshold is worse
-than none.
+## What is not proven yet
+
+One line of the status table above says `shipped, not yet seen firing`, and it stays that
+way on purpose. The three liquidation thresholds are in the APK and their input — the
+program's own liquidation price — is the number verified above. But **no liquidation
+alert has yet been watched firing on a live position**, because seeing one means letting
+a real position drift toward liquidation. Until that has been observed on a device, this
+README will not claim it.
+
+The same rule applies to everything else here: a row says `device-tested` only when the
+behaviour was recorded on a physical Seeker and watched back. Nothing in this repository
+is marked working because it compiles.
 
 ## About NEXA EXCHANGE
 
