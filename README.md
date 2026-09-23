@@ -27,7 +27,7 @@ cannot, written during the hackathon window. The repository history is the evide
 | Capability | Why a web app cannot do it | Verified |
 |---|---|---|
 | **Foreground service** polling Phoenix every 60 s | A browser tab stops when it is closed | ✅ on a Seeker |
-| **Native price alerts** on any of 82 perp markets | No background execution, no OS notification channel | ✅ on a Seeker |
+| **Native price alerts** on any of the 80+ perp markets | No background execution, no OS notification channel | ✅ on a Seeker |
 | **Restart after reboot** (`BOOT_COMPLETED`) | An alert set at night would silently die | ✅ on a Seeker |
 | **Home screen widget** with the live mark price | No web equivalent on Android | ✅ on a Seeker |
 | **Wallet connection over Mobile Wallet Adapter** | — | ✅ on a Seeker |
