@@ -35,12 +35,12 @@ cannot, written during the hackathon window. The repository history is the evide
 
 "Verified on a Seeker" means exactly that: recorded on a physical Solana Seeker and
 watched frame by frame, not assumed from the fact that it compiles. That review found
-six defects that compiling had not: a locale bug printing `$76 761,00` in an English UI;
-an alerts list that pushed the market list off screen; rows re-sorting under the reader's
-finger every ten seconds; a placeholder launcher icon; a widget that sat on `waiting…`
-for up to a minute after being placed; and — the worst of them — a widget that would have
-stayed blank forever, silently, if the monitor happened to be off. All are fixed in the
-history.
+what a green build had not: a locale bug printing `$76 761,00` in an English UI; an
+alerts list that pushed the market list off screen; rows re-sorting under the reader's
+finger every ten seconds; a placeholder launcher icon; a disconnect flow that demanded
+wallet approval just to forget a wallet; a widget that sat on `waiting…` for up to a
+minute after being placed; and — the worst of them — a widget that would have stayed
+blank forever, silently, if the monitor happened to be off. All are fixed in the history.
 
 ## Architecture
 
